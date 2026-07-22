@@ -2,6 +2,7 @@ import { useStore } from "../state/store";
 
 export function Toolbar() {
   const loadExample = useStore((s) => s.loadExample);
+  const loadDivider = useStore((s) => s.loadDivider);
   const clear = useStore((s) => s.clear);
   const count = useStore((s) => s.nodes.length);
 
@@ -16,7 +17,10 @@ export function Toolbar() {
       </div>
       <div className="toolbar-actions">
         <button className="btn" onClick={loadExample}>
-          Load example loop
+          Example loop
+        </button>
+        <button className="btn" onClick={loadDivider}>
+          Flow divider (µL/min)
         </button>
         <button className="btn btn-ghost" onClick={clear} disabled={count === 0}>
           Clear

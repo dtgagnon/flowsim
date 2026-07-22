@@ -56,6 +56,7 @@ interface Store {
   deleteSelected: () => void;
   setFluid: (id: string) => void;
   loadExample: () => void;
+  loadDivider: () => void;
   clear: () => void;
   recompute: () => void;
 }
@@ -153,6 +154,12 @@ export const useStore = create<Store>((set, get) => {
       set({ nodes: ex.nodes, edges: ex.edges, selectedId: null, selectedKind: null });
       recompute();
     },
+    loadDivider: () => {
+      const ex = buildDividerExample();
+      idSeq = ex.nextSeq;
+      set({ nodes: ex.nodes, edges: ex.edges, selectedId: null, selectedKind: null });
+      recompute();
+    },
     clear: () => {
       set({ nodes: [], edges: [], results: null, selectedId: null, selectedKind: null });
     },
@@ -205,6 +212,66 @@ function buildExample() {
     tube("tube_4", "barbY_1", "sensor_2", 6.4, 40, "a", "l"),
     tube("tube_5", "sensor_2", "outlet_1", 6.4, 30, "r", "p"),
     tube("tube_6", "barbY_1", "outlet_2", 6.4, 40, "b", "p"),
+  ];
+
+  return { nodes, edges, nextSeq: 100 };
+}
+
+// Flow-divider loop: a 50 mL/min pump is split at a tee into a wide-bore
+// bypass (carries the bulk of the flow) and a fine-bore sample capillary sized
+// so the sampling tap sees ~100 µL/min. This is the "pump high, throttle down
+// with tubing physics" pattern used to reach microliter-per-minute sampling.
+function buildDividerExample() {
+  const n = (id: string, kind: PaletteKind, x: number, y: number): ComponentNode => ({
+    id,
+    type: "component",
+    position: { x, y },
+    data: makeComponentData(kind),
+  });
+
+  const nodes: ComponentNode[] = [
+    n("reservoir_1", "reservoir", 40, 230),
+    n("pump_1", "pump", 220, 220),
+    n("barbTee_1", "barbTee", 420, 230),
+    n("sensor_bypass", "sensor", 640, 110),
+    n("outlet_bypass", "outlet", 860, 110),
+    n("sensor_sample", "sensor", 640, 360),
+    n("outlet_sample", "outlet", 860, 360),
+  ];
+  const pump = nodes.find((x) => x.id === "pump_1")!.data as any;
+  pump.flowValue = 50;
+  pump.flowUnit = "mL/min";
+  (nodes.find((x) => x.id === "sensor_bypass")!.data as any).label = "Bypass";
+  (nodes.find((x) => x.id === "sensor_sample")!.data as any).label = "Sample point";
+
+  const tube = (
+    id: string,
+    source: string,
+    target: string,
+    sizeIdMm: number,
+    lengthValue: number,
+    materialId: string,
+    sourceHandle?: string,
+    targetHandle?: string,
+  ): TubeEdge => ({
+    id,
+    source,
+    target,
+    sourceHandle,
+    targetHandle,
+    type: "tube",
+    data: { sizeIdMm, materialId, lengthValue, lengthUnit: "cm" },
+  });
+
+  const edges: TubeEdge[] = [
+    tube("tube_1", "reservoir_1", "pump_1", 9.5, 20, "silicone", "p", "in"),
+    tube("tube_2", "pump_1", "barbTee_1", 9.5, 20, "silicone", "out", "in"),
+    // Wide-bore bypass — low resistance, carries almost all of the 50 mL/min.
+    tube("tube_3", "barbTee_1", "sensor_bypass", 6.4, 15, "silicone", "a", "l"),
+    tube("tube_4", "sensor_bypass", "outlet_bypass", 6.4, 10, "silicone", "r", "p"),
+    // Fine-bore sample capillary — high resistance, throttles to ~100 µL/min.
+    tube("tube_5", "barbTee_1", "sensor_sample", 1.6, 40, "ptfe", "b", "l"),
+    tube("tube_6", "sensor_sample", "outlet_sample", 1.6, 10, "ptfe", "r", "p"),
   ];
 
   return { nodes, edges, nextSeq: 100 };

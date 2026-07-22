@@ -9,7 +9,7 @@ export const PA_PER_KPA = 1000;
 export const PA_PER_PSI = 6894.757;
 
 export type PressureUnit = "mmHg" | "kPa" | "psi" | "Pa";
-export type FlowUnit = "mL/min" | "L/min" | "mL/s";
+export type FlowUnit = "µL/min" | "mL/min" | "L/min" | "mL/s";
 export type LengthUnit = "mm" | "cm" | "m" | "in";
 
 export function pressureFromPa(pa: number, unit: PressureUnit): number {
@@ -38,9 +38,11 @@ export function pressureToPa(value: number, unit: PressureUnit): number {
   }
 }
 
-// Flow: 1 m^3/s = 1e6 mL / s = 6e7 mL/min
+// Flow: 1 m^3/s = 1e6 mL/s = 6e7 mL/min = 6e10 µL/min
 export function flowFromM3s(q: number, unit: FlowUnit): number {
   switch (unit) {
+    case "µL/min":
+      return q * 60e9;
     case "mL/min":
       return q * 60e6;
     case "L/min":
@@ -52,6 +54,8 @@ export function flowFromM3s(q: number, unit: FlowUnit): number {
 
 export function flowToM3s(value: number, unit: FlowUnit): number {
   switch (unit) {
+    case "µL/min":
+      return value / 60e9;
     case "mL/min":
       return value / 60e6;
     case "L/min":

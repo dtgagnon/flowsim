@@ -32,6 +32,9 @@ export interface TubingSize {
 }
 
 export const TUBING_SIZES: TubingSize[] = [
+  { label: "Capillary (0.25 mm)", idMm: 0.25 },
+  { label: "Capillary (0.50 mm)", idMm: 0.5 },
+  { label: "Microbore (0.75 mm)", idMm: 0.75 },
   { label: '1/32" (0.8 mm)', idMm: 0.8 },
   { label: '1/16" (1.6 mm)', idMm: 1.6 },
   { label: '3/32" (2.4 mm)', idMm: 2.4 },

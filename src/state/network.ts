@@ -165,6 +165,7 @@ export function buildAndSolve(
 }
 
 function flowToM3sSafe(v: number, unit: string): number {
+  if (unit === "µL/min") return v / 60e9;
   if (unit === "L/min") return v / 60e3;
   if (unit === "mL/s") return v / 1e6;
   return v / 60e6; // mL/min

@@ -40,6 +40,7 @@ function NodeInspector({ id }: { id: string }) {
                 value={d.flowUnit}
                 onChange={(e) => update(id, { flowUnit: e.target.value as never })}
               >
+                <option>µL/min</option>
                 <option>mL/min</option>
                 <option>L/min</option>
                 <option>mL/s</option>

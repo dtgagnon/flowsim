@@ -88,6 +88,41 @@ test("parallel branches split flow by conductance", () => {
   );
 });
 
+test("flow divider throttles high pump flow to microliter sampling", () => {
+  // 50 mL/min pump; wide bypass + fine sample capillary. Verify the split is
+  // resolved accurately at a ~500:1 resistance ratio and mass is conserved.
+  const Q = 50 / 60e6; // m^3/s
+  const net: HydraulicNetwork = {
+    nodes: [
+      { id: "src", ground: true },
+      { id: "pout" },
+      { id: "tee" },
+      { id: "out_bp", ground: true },
+      { id: "out_sm", ground: true },
+    ],
+    tubes: [
+      { id: "feed", a: "pout", b: "tee", idM: 0.0095, lengthM: 0.4, roughness: 1.5e-6, minorK: 0 },
+      // wide bypass, low resistance
+      { id: "bypass", a: "tee", b: "out_bp", idM: 0.0064, lengthM: 0.25, roughness: 1.5e-6, minorK: 0 },
+      // fine sample capillary, high resistance
+      { id: "sample", a: "tee", b: "out_sm", idM: 0.0016, lengthM: 0.5, roughness: 0.5e-6, minorK: 0 },
+    ],
+    flowSources: [{ id: "pump", from: "src", to: "pout", q: Q }],
+    ...WATER,
+  };
+  const r = solve(net);
+  assert.ok(r.converged);
+  const qSample = Math.abs(r.tubes.sample.flow);
+  const qBypass = Math.abs(r.tubes.bypass.flow);
+  // Mass conservation: bypass + sample ≈ pump flow.
+  assert.ok(Math.abs(qSample + qBypass - Q) / Q < 0.02, `sum ${qSample + qBypass} vs ${Q}`);
+  // Sample tap should land in the microliter-per-minute range.
+  const sampleUlMin = qSample * 60e9;
+  assert.ok(sampleUlMin > 40 && sampleUlMin < 300, `sample ${sampleUlMin} µL/min`);
+  // Deeply laminar in the capillary.
+  assert.equal(r.tubes.sample.regime, "laminar");
+});
+
 test("turbulent regime detected at high flow", () => {
   const Q = 5e-5; // m^3/s, high flow in small tube
   const D = 0.004;

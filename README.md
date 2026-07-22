@@ -8,7 +8,8 @@ flow regime** at every tube and at any measurement point you designate.
 
 ## What it models
 
-- **Volumetric flow** through each tube segment (mL/min, L/min).
+- **Volumetric flow** through each tube segment — auto-scaled from µL/min at a
+  sampling tap up to L/min on a main line.
 - **Pressure** at every node/junction and the **head** developed by each pump
   (mmHg, kPa, psi).
 - **Configurable tubing**: inner diameter (common fractional-inch medical
@@ -80,8 +81,9 @@ Without Nix, any Node ≥ 20 works: `npm install && npm run dev`.
 
 ## Using the app
 
-1. Click **Load example loop** to see a reservoir → pump → sensor → Y-split →
-   outlets loop, or start from a blank canvas.
+1. Click **Example loop** for a reservoir → pump → sensor → Y-split → outlets
+   loop, or **Flow divider (µL/min)** for the low-flow sampling pattern below.
+   You can also start from a blank canvas.
 2. **Drag** components from the left palette onto the canvas.
 3. **Drag between ports** (the blue dots) to connect components with tubing.
 4. Select a **tube** to set its diameter, material, and length; select a
@@ -90,6 +92,19 @@ Without Nix, any Node ≥ 20 works: `npm install && npm run dev`.
    locations — their pressure and flow appear live in the right panel.
 6. Pick the **working fluid** at the top of the inspector. Everything re-solves
    automatically.
+
+## Low-flow sampling (flow divider)
+
+Device sampling locations often need very low flow (tens to low hundreds of
+µL/min) while the fixture pump runs far higher (e.g. 50 mL/min) for stability
+and priming. The **Flow divider** example demonstrates throttling the pump flow
+down with tubing physics: a tee splits the line into a wide-bore, low-resistance
+**bypass** that carries almost all of the flow, and a fine-bore, high-resistance
+**sample capillary** whose resistance ratio sets the tap flow. As shipped it
+delivers ~100 µL/min to the sample point from a 50 mL/min pump. Adjust the
+sample line's inner diameter and length (or the bypass) to dial in a target —
+finer/longer sample tubing lowers the tap flow. Capillary and microbore sizes
+(0.25–0.8 mm ID) are in the tubing size list for exactly this.
 
 ## Project layout
 
