@@ -18,6 +18,10 @@ flow regime** at every tube and at any measurement point you designate.
 - **Connectors & fittings** with realistic minor-loss coefficients: barbed
   straight / elbow / reducer / Y / tee, luer locks and Y/tee sites,
   quick-connects, and 3-way stopcocks.
+- **Adjustable valves** (pinch, needle, ball) with a 0–100% opening. Throttling
+  is modeled as a viscous throat resistance that grows without bound as the
+  valve shuts, so a partly-closed valve throttles and a closed valve fully
+  blocks its branch — at any flow rate, not just high ones.
 - **Working fluids**: water, saline, blood, blood analog (glycerin), glycerin
   solutions — each with proper density and viscosity.
 
@@ -92,6 +96,28 @@ Without Nix, any Node ≥ 20 works: `npm install && npm run dev`.
    locations — their pressure and flow appear live in the right panel.
 6. Pick the **working fluid** at the top of the inspector. Everything re-solves
    automatically.
+
+## Automatic loop design
+
+Click **Design loop** and specify how many sensors you need, the target flow at
+those sensors, and the pump's flow range (min–max). FlowSim generates the loop
+with the **fewest nodes and edges** that satisfies the spec, then runs the
+solver to confirm the achieved flow:
+
+- **Series** (minimal): when the pump can output the target directly, all
+  sensors go on one line — by mass conservation each sensor sees exactly the
+  pump flow. Pump is set to the target.
+- **Flow divider**: when the target is below the pump's minimum, one branch is
+  added — a wide bypass to shed the excess and a fine sample line (sensors in
+  series) whose diameter/length are sized (and solver-verified) to the target.
+- **Infeasible**: when the target exceeds the pump's maximum, no single-pump
+  loop can push that flow through a sensor — reported rather than faked.
+
+## Save & load
+
+**Export** downloads the current schematic (fluid, components, tubing, valve
+positions) as a JSON file; **Import** loads one back. Round-trips are lossless,
+so loops can be versioned, shared, or used as fixtures.
 
 ## Low-flow sampling (flow divider)
 

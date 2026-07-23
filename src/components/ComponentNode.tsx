@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { ComponentData } from "../state/types";
 import { useStore } from "../state/store";
+import { CONNECTORS } from "../physics/catalog";
 import { fmtPressure, fmtFlow } from "../format";
 
 interface HandleDef {
@@ -57,7 +58,9 @@ function ComponentNodeInner({ id, data, selected }: NodeProps) {
   const result = useStore((s) => s.results?.nodes[id]);
   const handles = handlesFor(d);
 
-  const badgeClass = `node-card node-${d.kind}${selected ? " selected" : ""}`;
+  const isValve = d.kind === "connector" && CONNECTORS[d.connector].isValve;
+  const icon = isValve ? "⧗" : (ICONS[d.kind] ?? "⊹");
+  const badgeClass = `node-card node-${d.kind}${isValve ? " node-valve" : ""}${selected ? " selected" : ""}`;
 
   return (
     <div className={badgeClass}>
@@ -70,9 +73,12 @@ function ComponentNodeInner({ id, data, selected }: NodeProps) {
           className="port"
         />
       ))}
-      <div className="node-icon">{ICONS[d.kind] ?? "⊹"}</div>
+      <div className="node-icon">{icon}</div>
       <div className="node-body">
         <div className="node-title">{d.label}</div>
+        {isValve && d.kind === "connector" && (
+          <div className="node-sub">{`${d.opening ?? 100}% open`}</div>
+        )}
         {d.kind === "pump" && (
           <div className="node-sub">{`${d.flowValue} ${d.flowUnit}`}</div>
         )}

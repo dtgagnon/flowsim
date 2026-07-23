@@ -32,6 +32,8 @@ export interface ConnectorData extends Indexable {
   kind: "connector";
   label: string;
   connector: ConnectorKind;
+  /** valve opening 0–100% (only meaningful for valve connector kinds) */
+  opening?: number;
 }
 
 export interface SensorData extends Indexable {

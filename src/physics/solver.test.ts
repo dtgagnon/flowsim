@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { solve, type HydraulicNetwork } from "./solver.ts";
-import { area } from "./hydraulics.ts";
+import { area, valveResistance } from "./hydraulics.ts";
 
 const WATER = { density: 998.2, viscosity: 1.002e-3 };
 
@@ -121,6 +121,49 @@ test("flow divider throttles high pump flow to microliter sampling", () => {
   assert.ok(sampleUlMin > 40 && sampleUlMin < 300, `sample ${sampleUlMin} µL/min`);
   // Deeply laminar in the capillary.
   assert.equal(r.tubes.sample.regime, "laminar");
+});
+
+test("valveResistance grows as the valve closes and blocks when shut", () => {
+  const D = 0.004;
+  const open = valveResistance(D, WATER.viscosity, 100);
+  const half = valveResistance(D, WATER.viscosity, 50);
+  const nearly = valveResistance(D, WATER.viscosity, 5);
+  assert.ok(half > open * 10, "half-open is far more resistive than open");
+  assert.ok(nearly > half * 10, "nearly-closed is far more resistive than half");
+  assert.ok(valveResistance(D, WATER.viscosity, 0) > 1e14, "closed blocks");
+});
+
+test("closing a valve diverts flow to the parallel path even at low flow", () => {
+  // Two parallel tubes between a fixed pressure and ground; one carries a valve.
+  const build = (openPercent: number): HydraulicNetwork => ({
+    nodes: [
+      { id: "in", fixedPressure: 500 },
+      { id: "out", ground: true },
+    ],
+    tubes: [
+      { id: "open", a: "in", b: "out", idM: 0.004, lengthM: 0.5, roughness: 1.5e-6, minorK: 0 },
+      {
+        id: "valved",
+        a: "in",
+        b: "out",
+        idM: 0.004,
+        lengthM: 0.5,
+        roughness: 1.5e-6,
+        minorK: 0.1,
+        extraR: valveResistance(0.004, WATER.viscosity, openPercent),
+      },
+    ],
+    flowSources: [],
+    ...WATER,
+  });
+
+  const share = (r: ReturnType<typeof solve>) =>
+    Math.abs(r.tubes.valved.flow) /
+    (Math.abs(r.tubes.valved.flow) + Math.abs(r.tubes.open.flow));
+
+  assert.ok(share(solve(build(100))) > 0.4, "open valve carries a fair share");
+  assert.ok(share(solve(build(5))) < 0.02, "nearly-closed valve is throttled to a trickle");
+  assert.ok(share(solve(build(0))) < 1e-6, "closed valve blocks its branch");
 });
 
 test("turbulent regime detected at high flow", () => {

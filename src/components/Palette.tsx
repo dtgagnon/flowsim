@@ -48,7 +48,7 @@ export function Palette() {
       ))}
 
       <div className="palette-group-title">Connectors &amp; fittings</div>
-      {CONNECTOR_LIST.map((c) => (
+      {CONNECTOR_LIST.filter((c) => !c.isValve).map((c) => (
         <Item
           key={c.kind}
           item={{
@@ -56,6 +56,19 @@ export function Palette() {
             label: c.name,
             icon: c.ports >= 3 ? "⊻" : "⊹",
             sub: `${c.ports} port · K=${c.k}`,
+          }}
+        />
+      ))}
+
+      <div className="palette-group-title">Valves (adjustable)</div>
+      {CONNECTOR_LIST.filter((c) => c.isValve).map((c) => (
+        <Item
+          key={c.kind}
+          item={{
+            kind: c.kind,
+            label: c.name,
+            icon: "⧗",
+            sub: `${c.note ?? "valve"} · K₀=${c.k}`,
           }}
         />
       ))}

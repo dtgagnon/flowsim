@@ -9,6 +9,7 @@ import {
 } from "@xyflow/react";
 import type { ComponentNode, TubeEdge, ComponentData, Results } from "./types";
 import { buildAndSolve } from "./network";
+import { synthesizeLoop, type DesignParams, type DesignResult } from "./synth";
 import { CONNECTORS, type ConnectorKind } from "../physics/catalog";
 
 let idSeq = 1;
@@ -33,8 +34,15 @@ function makeComponentData(kind: PaletteKind): ComponentData {
       return { kind: "outlet", label: "Open outlet" };
     case "sensor":
       return { kind: "sensor", label: "Sensor" };
-    default:
-      return { kind: "connector", label: CONNECTORS[kind].name, connector: kind };
+    default: {
+      const c = CONNECTORS[kind];
+      return {
+        kind: "connector",
+        label: c.name,
+        connector: kind,
+        ...(c.isValve ? { opening: 100 } : {}),
+      };
+    }
   }
 }
 
@@ -57,8 +65,25 @@ interface Store {
   setFluid: (id: string) => void;
   loadExample: () => void;
   loadDivider: () => void;
+  loadSchematic: (s: { nodes: ComponentNode[]; edges: TubeEdge[]; fluidId?: string }) => void;
+  exportSchematic: () => string;
+  importSchematic: (json: string) => { ok: boolean; error?: string };
+  synthesize: (params: DesignParams) => DesignResult;
   clear: () => void;
   recompute: () => void;
+}
+
+const SCHEMATIC_VERSION = 1;
+
+// Set the id counter beyond any existing numeric suffix so new components
+// (and imported/generated ones) never collide.
+function seqBeyond(nodes: ComponentNode[], edges: TubeEdge[]): number {
+  let max = 0;
+  for (const item of [...nodes, ...edges]) {
+    const m = /_(\d+)$/.exec(item.id);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return max + 1;
 }
 
 export const useStore = create<Store>((set, get) => {
@@ -159,6 +184,70 @@ export const useStore = create<Store>((set, get) => {
       idSeq = ex.nextSeq;
       set({ nodes: ex.nodes, edges: ex.edges, selectedId: null, selectedKind: null });
       recompute();
+    },
+    loadSchematic: ({ nodes, edges, fluidId }) => {
+      idSeq = seqBeyond(nodes, edges);
+      set({
+        nodes,
+        edges,
+        ...(fluidId ? { fluidId } : {}),
+        selectedId: null,
+        selectedKind: null,
+      });
+      recompute();
+    },
+    exportSchematic: () => {
+      const { nodes, edges, fluidId } = get();
+      const payload = {
+        app: "flowsim",
+        version: SCHEMATIC_VERSION,
+        fluidId,
+        nodes: nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: n.data })),
+        edges: edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle,
+          targetHandle: e.targetHandle,
+          type: e.type,
+          data: e.data,
+        })),
+      };
+      return JSON.stringify(payload, null, 2);
+    },
+    importSchematic: (json) => {
+      try {
+        const p = JSON.parse(json);
+        if (p?.app !== "flowsim" || !Array.isArray(p.nodes) || !Array.isArray(p.edges)) {
+          return { ok: false, error: "Not a FlowSim schematic file." };
+        }
+        const nodes = p.nodes.map((n: any) => ({
+          id: String(n.id),
+          type: "component",
+          position: { x: Number(n.position?.x) || 0, y: Number(n.position?.y) || 0 },
+          data: n.data,
+        })) as ComponentNode[];
+        const edges = p.edges.map((e: any) => ({
+          id: String(e.id),
+          source: String(e.source),
+          target: String(e.target),
+          sourceHandle: e.sourceHandle ?? undefined,
+          targetHandle: e.targetHandle ?? undefined,
+          type: "tube",
+          data: e.data,
+        })) as TubeEdge[];
+        get().loadSchematic({ nodes, edges, fluidId: p.fluidId });
+        return { ok: true };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : "Invalid JSON." };
+      }
+    },
+    synthesize: (params) => {
+      const result = synthesizeLoop(params, get().fluidId);
+      if (result.ok) {
+        get().loadSchematic({ nodes: result.nodes, edges: result.edges });
+      }
+      return result;
     },
     clear: () => {
       set({ nodes: [], edges: [], results: null, selectedId: null, selectedKind: null });

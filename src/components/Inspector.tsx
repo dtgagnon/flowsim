@@ -1,5 +1,5 @@
 import { useStore } from "../state/store";
-import { TUBING_MATERIALS, TUBING_SIZES } from "../physics/catalog";
+import { TUBING_MATERIALS, TUBING_SIZES, CONNECTORS } from "../physics/catalog";
 import { FLUIDS } from "../physics/fluids";
 import type { ComponentData } from "../state/types";
 import { fmtPressure, fmtFlow, fmtVelocity, fmtReynolds, regimeColor } from "../format";
@@ -76,7 +76,24 @@ function NodeInspector({ id }: { id: string }) {
         </Field>
       )}
 
-      {d.kind === "connector" && (
+      {d.kind === "connector" && CONNECTORS[d.connector].isValve && (
+        <Field label={`Valve opening — ${d.opening ?? 100}%`}>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            step={1}
+            value={d.opening ?? 100}
+            onChange={(e) => update(id, { opening: Number(e.target.value) })}
+          />
+          <div className="valve-scale">
+            <span>closed</span>
+            <span>open</span>
+          </div>
+        </Field>
+      )}
+
+      {d.kind === "connector" && !CONNECTORS[d.connector].isValve && (
         <div className="result-line muted">Fitting — minor loss applied to attached tubing.</div>
       )}
 

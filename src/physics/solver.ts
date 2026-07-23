@@ -36,6 +36,8 @@ export interface TubeBranch {
   roughness: number;
   /** summed minor-loss K from fittings at both ends, applied at this tube's velocity */
   minorK: number;
+  /** series linear resistance from in-line elements (e.g. valve throat), Pa·s/m³ */
+  extraR?: number;
 }
 
 export interface FlowSource {
@@ -157,6 +159,7 @@ export function solve(net: HydraulicNetwork): SolveResult {
         t.minorK,
         net.density,
         net.viscosity,
+        t.extraR ?? 0,
       );
       cond.set(t.id, R > 0 ? 1 / R : 0);
     }
@@ -250,6 +253,7 @@ export function solve(net: HydraulicNetwork): SolveResult {
       net.viscosity,
     );
     const minor = minorPressureDrop(q, t.idM, t.minorK, net.density);
+    const extra = (t.extraR ?? 0) * Math.abs(q); // valve throat, linear
     tubes[t.id] = {
       id: t.id,
       flow: q,
@@ -257,8 +261,8 @@ export function solve(net: HydraulicNetwork): SolveResult {
       reynolds: re,
       regime: regimeFor(re),
       frictionDrop: fric,
-      minorDrop: minor,
-      pressureDrop: fric + minor,
+      minorDrop: minor + extra,
+      pressureDrop: fric + minor + extra,
     };
   }
 

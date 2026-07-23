@@ -64,14 +64,19 @@ export type ConnectorKind =
   | "luerY"
   | "luerTee"
   | "quickConnect"
-  | "stopcock";
+  | "stopcock"
+  | "pinchValve"
+  | "needleValve"
+  | "ballValve";
 
 export interface ConnectorType {
   kind: ConnectorKind;
   name: string;
   ports: number;
-  /** total minor-loss coefficient K */
+  /** total minor-loss coefficient K (for valves, K at fully open) */
   k: number;
+  /** true if the fitting throttles flow via an adjustable opening */
+  isValve?: boolean;
   note?: string;
 }
 
@@ -87,6 +92,9 @@ export const CONNECTORS: Record<ConnectorKind, ConnectorType> = {
   luerTee: { kind: "luerTee", name: "Luer T-manifold", ports: 3, k: 1.0 },
   quickConnect: { kind: "quickConnect", name: "Quick-connect coupling", ports: 2, k: 0.4 },
   stopcock: { kind: "stopcock", name: "3-way stopcock", ports: 3, k: 1.5, note: "Directional valve" },
+  pinchValve: { kind: "pinchValve", name: "Pinch valve", ports: 2, k: 0.2, isValve: true, note: "Tubing-occluding" },
+  needleValve: { kind: "needleValve", name: "Needle valve", ports: 2, k: 3.0, isValve: true, note: "Fine metering" },
+  ballValve: { kind: "ballValve", name: "Ball valve", ports: 2, k: 0.1, isValve: true, note: "Quarter-turn" },
 };
 
 export const CONNECTOR_LIST = Object.values(CONNECTORS);

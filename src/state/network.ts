@@ -11,6 +11,7 @@ import {
 } from "../physics/solver";
 import { getFluid } from "../physics/fluids";
 import { getTubingMaterial, CONNECTORS } from "../physics/catalog";
+import { valveResistance } from "../physics/hydraulics";
 import { mmToM, lengthToM } from "../physics/units";
 import type { ComponentNode, TubeEdge, Results } from "./types";
 
@@ -70,12 +71,24 @@ export function buildAndSolve(
   }
 
   // Minor-loss K contributed to a tube by the component at one of its ends.
+  // Valves contribute their fully-open baseline K here; their throttling is a
+  // separate series resistance (see rAtEnd) so it doesn't vanish at low flow.
   const kAtEnd = (nodeId: string): number => {
     const comp = byId.get(nodeId);
     if (!comp || comp.data.kind !== "connector") return 0;
     const c = CONNECTORS[comp.data.connector];
     const deg = Math.max(1, degree.get(nodeId) ?? 1);
     return c.k / deg;
+  };
+
+  // Series (linear) resistance a valve adds to an incident tube from its throat.
+  const rAtEnd = (nodeId: string, tubeIdM: number): number => {
+    const comp = byId.get(nodeId);
+    if (!comp || comp.data.kind !== "connector") return 0;
+    const c = CONNECTORS[comp.data.connector];
+    if (!c.isValve) return 0;
+    const deg = Math.max(1, degree.get(nodeId) ?? 1);
+    return valveResistance(tubeIdM, fluid.viscosity, comp.data.opening ?? 100) / deg;
   };
 
   const tubes: TubeBranch[] = edges.map((e) => {
@@ -95,6 +108,7 @@ export function buildAndSolve(
       lengthM,
       roughness: material.roughness,
       minorK: kAtEnd(e.source) + kAtEnd(e.target),
+      extraR: rAtEnd(e.source, idM) + rAtEnd(e.target, idM),
     };
   });
 

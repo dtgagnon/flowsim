@@ -89,9 +89,29 @@ export function minorPressureDrop(
   return kSum * 0.5 * density * v * v;
 }
 
+// Valve throat resistance. A closing valve shrinks its flow passage, so unlike
+// a minor loss (which vanishes at low flow) it must present a *viscous*
+// resistance that grows without bound as it shuts — otherwise a "closed" valve
+// wouldn't actually stop low flows. Modeled as Hagen–Poiseuille through a short
+// throat whose diameter scales with the opening fraction. Returns a Q-
+// independent linear resistance (Pa·s/m³) that is ~negligible when fully open
+// and effectively infinite when closed.
+export function valveResistance(
+  diameterM: number,
+  viscosity: number,
+  openingPercent: number,
+): number {
+  const f = Math.max(0, Math.min(1, openingPercent / 100));
+  if (f <= 0.005) return 1e15; // fully closed — blocks the branch
+  const throatD = diameterM * f;
+  const throatL = 3 * diameterM; // stubby restriction
+  return (128 * viscosity * throatL) / (Math.PI * Math.pow(throatD, 4));
+}
+
 // Effective linear resistance R = ΔP / Q for a tube branch at an operating
-// point, combining friction and minor losses. Used to build the nodal
-// conductance matrix; recomputed each iteration as Q evolves.
+// point, combining friction, minor losses, and any series element resistance
+// (e.g. a valve throat). Used to build the nodal conductance matrix; recomputed
+// each iteration as Q evolves.
 //
 // At near-zero flow the friction term collapses to the exact Hagen–Poiseuille
 // resistance (a finite constant), so the branch never becomes singular.
@@ -103,6 +123,7 @@ export function tubeResistance(
   kSum: number,
   density: number,
   viscosity: number,
+  extraR = 0,
 ): number {
   const q = Math.abs(flowM3s);
 
@@ -110,7 +131,7 @@ export function tubeResistance(
   const rPoiseuille = (128 * viscosity * lengthM) / (Math.PI * Math.pow(diameterM, 4));
 
   if (q <= 1e-12) {
-    return rPoiseuille;
+    return rPoiseuille + extraR;
   }
 
   const dpFric = frictionPressureDrop(q, diameterM, lengthM, roughness, density, viscosity);
@@ -118,6 +139,7 @@ export function tubeResistance(
   const r = (dpFric + dpMinor) / q;
 
   // The Poiseuille resistance is the physical floor for the friction part;
-  // clamping there keeps the transitional region well-behaved.
-  return Math.max(r, rPoiseuille);
+  // clamping there keeps the transitional region well-behaved. The series
+  // element resistance (valve throat) adds on top.
+  return Math.max(r, rPoiseuille) + extraR;
 }
