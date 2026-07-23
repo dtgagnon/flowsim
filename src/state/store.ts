@@ -10,7 +10,7 @@ import {
 import type { ComponentNode, TubeEdge, ComponentData, Results } from "./types";
 import { buildAndSolve } from "./network";
 import { synthesizeLoop, type DesignParams, type DesignResult } from "./synth";
-import { CONNECTORS, type ConnectorKind } from "../physics/catalog";
+import { CONNECTORS, DEFAULT_CONVERSION, type ConnectorKind } from "../physics/catalog";
 
 let idSeq = 1;
 const nextId = (prefix: string) => `${prefix}_${idSeq++}`;
@@ -36,12 +36,14 @@ function makeComponentData(kind: PaletteKind): ComponentData {
       return { kind: "sensor", label: "Sensor" };
     default: {
       const c = CONNECTORS[kind];
-      return {
-        kind: "connector",
-        label: c.name,
-        connector: kind,
-        ...(c.isValve ? { opening: 100 } : {}),
-      };
+      const base = { kind: "connector" as const, label: c.name, connector: kind };
+      if (kind === "barbReducer") {
+        return { ...base, fromMm: DEFAULT_CONVERSION.largeMm, toMm: DEFAULT_CONVERSION.smallMm };
+      }
+      if (kind === "barbExpander") {
+        return { ...base, fromMm: DEFAULT_CONVERSION.smallMm, toMm: DEFAULT_CONVERSION.largeMm };
+      }
+      return { ...base, ...(c.isValve ? { opening: 100 } : {}) };
     }
   }
 }

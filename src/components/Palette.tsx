@@ -1,4 +1,4 @@
-import { CONNECTOR_LIST } from "../physics/catalog";
+import { CONNECTOR_LIST, DEFAULT_CONVERSION } from "../physics/catalog";
 import type { PaletteKind } from "../state/store";
 
 interface PaletteItem {
@@ -48,17 +48,23 @@ export function Palette() {
       ))}
 
       <div className="palette-group-title">Connectors &amp; fittings</div>
-      {CONNECTOR_LIST.filter((c) => !c.isValve).map((c) => (
-        <Item
-          key={c.kind}
-          item={{
-            kind: c.kind,
-            label: c.name,
-            icon: c.ports >= 3 ? "⊻" : "⊹",
-            sub: `${c.ports} port · K=${c.k}`,
-          }}
-        />
-      ))}
+      {CONNECTOR_LIST.filter((c) => !c.isValve).map((c) => {
+        const isStep = c.kind === "barbReducer" || c.kind === "barbExpander";
+        const sub = isStep
+          ? `${DEFAULT_CONVERSION.largeLabel}↔${DEFAULT_CONVERSION.smallLabel} · ${c.note}`
+          : `${c.ports} port · K=${c.k}`;
+        return (
+          <Item
+            key={c.kind}
+            item={{
+              kind: c.kind,
+              label: c.name,
+              icon: c.ports >= 3 ? "⊻" : "⊹",
+              sub,
+            }}
+          />
+        );
+      })}
 
       <div className="palette-group-title">Valves (adjustable)</div>
       {CONNECTOR_LIST.filter((c) => c.isValve).map((c) => (

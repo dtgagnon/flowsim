@@ -1,8 +1,25 @@
 import { useStore } from "../state/store";
-import { TUBING_MATERIALS, TUBING_SIZES, CONNECTORS } from "../physics/catalog";
+import {
+  TUBING_MATERIALS,
+  TUBING_SIZES,
+  CONNECTORS,
+  REDUCER_CONVERSIONS,
+  DEFAULT_CONVERSION,
+} from "../physics/catalog";
 import { FLUIDS } from "../physics/fluids";
 import type { ComponentData } from "../state/types";
 import { fmtPressure, fmtFlow, fmtVelocity, fmtReynolds, regimeColor } from "../format";
+
+// Resolve a reducer/expander's stored bores to a `large|small` option value,
+// falling back to the default conversion for legacy nodes with no size set.
+function reducerKey(connector: string, fromMm?: number, toMm?: number): string {
+  const stepUp = connector === "barbExpander";
+  const largeMm = stepUp ? toMm : fromMm;
+  const smallMm = stepUp ? fromMm : toMm;
+  const match = REDUCER_CONVERSIONS.find((c) => c.largeMm === largeMm && c.smallMm === smallMm);
+  const c = match ?? DEFAULT_CONVERSION;
+  return `${c.largeMm}|${c.smallMm}`;
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -93,9 +110,46 @@ function NodeInspector({ id }: { id: string }) {
         </Field>
       )}
 
-      {d.kind === "connector" && !CONNECTORS[d.connector].isValve && (
-        <div className="result-line muted">Fitting — minor loss applied to attached tubing.</div>
-      )}
+      {d.kind === "connector" &&
+        (d.connector === "barbReducer" || d.connector === "barbExpander") && (
+          <>
+            <Field label="Size conversion">
+              <select
+                value={reducerKey(d.connector, d.fromMm, d.toMm)}
+                onChange={(e) => {
+                  const [largeMm, smallMm] = e.target.value.split("|").map(Number);
+                  const stepUp = d.connector === "barbExpander";
+                  update(id, {
+                    fromMm: stepUp ? smallMm : largeMm,
+                    toMm: stepUp ? largeMm : smallMm,
+                  });
+                }}
+              >
+                {REDUCER_CONVERSIONS.map((c) => {
+                  const stepUp = d.connector === "barbExpander";
+                  const label = stepUp
+                    ? `${c.smallLabel} → ${c.largeLabel}`
+                    : `${c.largeLabel} → ${c.smallLabel}`;
+                  return (
+                    <option key={`${c.largeMm}|${c.smallMm}`} value={`${c.largeMm}|${c.smallMm}`}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
+            </Field>
+            <div className="result-line muted">
+              Standard stock step only — match the attached tubing to these bores.
+            </div>
+          </>
+        )}
+
+      {d.kind === "connector" &&
+        !CONNECTORS[d.connector].isValve &&
+        d.connector !== "barbReducer" &&
+        d.connector !== "barbExpander" && (
+          <div className="result-line muted">Fitting — minor loss applied to attached tubing.</div>
+        )}
 
       {result && (
         <div className="result-block">

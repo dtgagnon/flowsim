@@ -34,6 +34,10 @@ export interface ConnectorData extends Indexable {
   connector: ConnectorKind;
   /** valve opening 0–100% (only meaningful for valve connector kinds) */
   opening?: number;
+  /** inlet bore, mm (only meaningful for reducer/expander fittings) */
+  fromMm?: number;
+  /** outlet bore, mm (only meaningful for reducer/expander fittings) */
+  toMm?: number;
 }
 
 export interface SensorData extends Indexable {

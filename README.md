@@ -16,8 +16,10 @@ flow regime** at every tube and at any measurement point you designate.
   sizes), length, and material (silicone, PVC/Tygon, C-Flex, PharMed, PU,
   PTFE …).
 - **Connectors & fittings** with realistic minor-loss coefficients: barbed
-  straight / elbow / reducer / Y / tee, luer locks and Y/tee sites,
-  quick-connects, and 3-way stopcocks.
+  straight / elbow / reducer / expander / Y / tee, luer locks and Y/tee sites,
+  quick-connects, and 3-way stopcocks. Reducers and expanders are restricted to
+  a standard set of off-the-shelf size steps (adjacent barb sizes, at most two
+  nominal sizes apart) — no unbuildable jumps like 1/2" straight to 1/32".
 - **Adjustable valves** (pinch, needle, ball) with a 0–100% opening. Throttling
   is modeled as a viscous throat resistance that grows without bound as the
   valve shuts, so a partly-closed valve throttles and a closed valve fully
