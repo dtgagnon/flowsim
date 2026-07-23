@@ -33,6 +33,8 @@ export interface DesignParams {
   pumpMinValue: number;
   pumpMaxValue: number;
   pumpFlowUnit: FlowUnit;
+  /** recirculate back into the reservoir instead of draining to open outlets */
+  closedLoop?: boolean;
 }
 
 export type Topology = "parallel" | "divider" | "infeasible";
@@ -137,7 +139,7 @@ export function synthesizeLoop(params: DesignParams, fluidId: string): DesignRes
       totalLenCm: 25,
       label: n === 1 ? "Sensor" : `Sensor ${i + 1}`,
     }));
-    const built = buildManifold(total, branches);
+    const built = buildManifold(total, branches, params.closedLoop ?? false);
     const res = buildAndSolve(built.nodes, built.edges, fluidId);
     const stat = sensorStats(res, built.sensorIds);
     if (stat.spread > 0.05) {
@@ -146,7 +148,7 @@ export function synthesizeLoop(params: DesignParams, fluidId: string): DesignRes
     return {
       ok: true,
       topology: "parallel",
-      message: `Parallel manifold: the pump runs at the combined demand and splits into ${n} independent branch${n > 1 ? "es" : ""}, each holding the target. No sensors in series.`,
+      message: `Parallel manifold: the pump runs at the combined demand and splits into ${n} independent branch${n > 1 ? "es" : ""}, each holding the target. No sensors in series.${params.closedLoop ? " Branches recirculate to the reservoir (closed loop)." : ""}`,
       nodes: built.nodes,
       edges: built.edges,
       nodeCount: built.nodes.length,
@@ -199,9 +201,10 @@ export function synthesizeLoop(params: DesignParams, fluidId: string): DesignRes
 
   // Refine sample length against the real solver (laminar R ∝ L, branch flow ∝
   // 1/R, so L *= achieved/target converges in a few steps).
+  const closed = params.closedLoop ?? false;
   let lenCm = chosenLenCm;
   let stat = { mean: 0, spread: 0 };
-  let built = buildManifold(Qpump, makeBranches(lenCm));
+  let built = buildManifold(Qpump, makeBranches(lenCm), closed);
   for (let i = 0; i < 14; i++) {
     const res = buildAndSolve(built.nodes, built.edges, fluidId);
     stat = sensorStats(res, built.sensorIds);
@@ -209,7 +212,7 @@ export function synthesizeLoop(params: DesignParams, fluidId: string): DesignRes
     const err = stat.mean / Qt;
     if (Math.abs(err - 1) < 0.005) break;
     lenCm = Math.min(2000, Math.max(1, lenCm * err));
-    built = buildManifold(Qpump, makeBranches(lenCm));
+    built = buildManifold(Qpump, makeBranches(lenCm), closed);
   }
 
   const achievedUl = flowFromM3s(stat.mean, "µL/min");
@@ -224,7 +227,7 @@ export function synthesizeLoop(params: DesignParams, fluidId: string): DesignRes
   return {
     ok: true,
     topology: "divider",
-    message: `Flow divider manifold: the pump runs at its ${params.pumpMinValue} ${params.pumpFlowUnit} minimum, a wide bypass sheds the excess, and ${n} independent ${chosenD} mm sample branch${n > 1 ? "es" : ""} (~${Math.round(lenCm)} cm each) throttle to target. No sensors in series.`,
+    message: `Flow divider manifold: the pump runs at its ${params.pumpMinValue} ${params.pumpFlowUnit} minimum, a wide bypass sheds the excess, and ${n} independent ${chosenD} mm sample branch${n > 1 ? "es" : ""} (~${Math.round(lenCm)} cm each) throttle to target. No sensors in series.${closed ? " Bypass and branches recirculate to the reservoir (closed loop)." : ""}`,
     nodes: built.nodes,
     edges: built.edges,
     nodeCount: built.nodes.length,
@@ -242,7 +245,7 @@ export function synthesizeLoop(params: DesignParams, fluidId: string): DesignRes
 // feeds two. A branch is either a device sample line (tube → sensor → tube →
 // outlet) or a plain bypass (tube → outlet). Trunk segments are short and wide
 // so the branches see nearly equal manifold pressure.
-function buildManifold(pumpFlowM3s: number, branches: BranchSpec[]) {
+function buildManifold(pumpFlowM3s: number, branches: BranchSpec[], closedLoop = false) {
   const flowUnit = pickFlowUnit(pumpFlowM3s);
   const nodes: ComponentNode[] = [];
   const edges: TubeEdge[] = [];
@@ -252,7 +255,7 @@ function buildManifold(pumpFlowM3s: number, branches: BranchSpec[]) {
   const res = node(RES(), 40, trunkY);
   const pump = node(PUMP(round3(flowFromM3s(pumpFlowM3s, flowUnit)), flowUnit), 220, trunkY);
   nodes.push(res, pump);
-  edges.push(tube(res.id, pump.id, trunkIdMm, 20, "p", "in"));
+  edges.push(tube(res.id, pump.id, trunkIdMm, 20, "out", "in"));
 
   const B = branches.length;
   const sensorIds: string[] = [];
@@ -280,6 +283,8 @@ function buildManifold(pumpFlowM3s: number, branches: BranchSpec[]) {
     return { nodeId: t.id, handle: "a", x: t.position.x + 120 };
   };
 
+  // In a closed loop every branch returns to the reservoir's return port
+  // instead of an open drain; the reservoir is both supply and sink.
   branches.forEach((br, i) => {
     const src = branchSource(i);
     const by = trunkY + 150 + (i % 2) * 80;
@@ -287,11 +292,18 @@ function buildManifold(pumpFlowM3s: number, branches: BranchSpec[]) {
     if (br.sample) {
       const half = br.totalLenCm / 2;
       const sensor = node(SENS(br.label), src.x, by);
-      const outlet = node(OUT(`${br.label} drain`), src.x, outY);
-      nodes.push(sensor, outlet);
+      nodes.push(sensor);
       edges.push(tube(src.nodeId, sensor.id, br.idMm, half, src.handle, "l", "ptfe"));
-      edges.push(tube(sensor.id, outlet.id, br.idMm, half, "r", "p", "ptfe"));
+      if (closedLoop) {
+        edges.push(tube(sensor.id, res.id, br.idMm, half, "r", "in", "ptfe"));
+      } else {
+        const outlet = node(OUT(`${br.label} drain`), src.x, outY);
+        nodes.push(outlet);
+        edges.push(tube(sensor.id, outlet.id, br.idMm, half, "r", "p", "ptfe"));
+      }
       sensorIds.push(sensor.id);
+    } else if (closedLoop) {
+      edges.push(tube(src.nodeId, res.id, br.idMm, br.totalLenCm, src.handle, "in"));
     } else {
       const outlet = node(OUT(br.label + " outlet"), src.x, by);
       nodes.push(outlet);

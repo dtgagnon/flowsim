@@ -166,6 +166,33 @@ test("closing a valve diverts flow to the parallel path even at low flow", () =>
   assert.ok(share(solve(build(0))) < 1e-6, "closed valve blocks its branch");
 });
 
+test("closed loop: reservoir is both supply and return", () => {
+  // Pump draws from the reservoir and the loop feeds back into it. The
+  // reservoir (a single fixed-pressure node) sources and sinks the same flow,
+  // with no open outlet anywhere.
+  const Q = 5e-6;
+  const net: HydraulicNetwork = {
+    nodes: [
+      { id: "res", fixedPressure: 0 },
+      { id: "a" },
+      { id: "b" },
+    ],
+    tubes: [
+      { id: "loop1", a: "a", b: "b", idM: 0.006, lengthM: 0.4, roughness: 1.5e-6, minorK: 0.3 },
+      { id: "return", a: "b", b: "res", idM: 0.006, lengthM: 0.4, roughness: 1.5e-6, minorK: 0.3 },
+    ],
+    flowSources: [{ id: "pump", from: "res", to: "a", q: Q }],
+    ...WATER,
+  };
+  const r = solve(net);
+  assert.ok(r.converged);
+  // Every segment carries the full recirculating flow (mass conserved).
+  assert.ok(Math.abs(Math.abs(r.tubes.loop1.flow) - Q) / Q < 0.02, `loop ${r.tubes.loop1.flow}`);
+  assert.ok(Math.abs(Math.abs(r.tubes.return.flow) - Q) / Q < 0.02, `return ${r.tubes.return.flow}`);
+  // No warning about a missing reference — the reservoir supplies it.
+  assert.ok(!r.warnings.some((w) => w.includes("reference")), r.warnings.join(";"));
+});
+
 test("turbulent regime detected at high flow", () => {
   const Q = 5e-5; // m^3/s, high flow in small tube
   const D = 0.004;

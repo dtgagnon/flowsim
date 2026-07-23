@@ -19,7 +19,11 @@ function handlesFor(data: ComponentData): HandleDef[] {
         { id: "out", position: Position.Right },
       ];
     case "reservoir":
-      return [{ id: "p", position: Position.Right }];
+      // supply (out) feeds the loop; return (in) accepts closed-loop feedback
+      return [
+        { id: "in", position: Position.Left },
+        { id: "out", position: Position.Right },
+      ];
     case "outlet":
       return [{ id: "p", position: Position.Left }];
     case "sensor":

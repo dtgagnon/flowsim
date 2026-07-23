@@ -5,6 +5,7 @@ import { DesignDialog } from "./DesignDialog";
 export function Toolbar() {
   const loadExample = useStore((s) => s.loadExample);
   const loadDivider = useStore((s) => s.loadDivider);
+  const loadClosedLoop = useStore((s) => s.loadClosedLoop);
   const exportSchematic = useStore((s) => s.exportSchematic);
   const importSchematic = useStore((s) => s.importSchematic);
   const clear = useStore((s) => s.clear);
@@ -56,6 +57,9 @@ export function Toolbar() {
           </button>
           <button className="btn" onClick={loadDivider}>
             Flow divider (µL/min)
+          </button>
+          <button className="btn" onClick={loadClosedLoop}>
+            Closed loop
           </button>
           <span className="toolbar-sep" />
           <button className="btn" onClick={onExport} disabled={count === 0}>

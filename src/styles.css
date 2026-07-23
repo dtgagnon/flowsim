@@ -150,6 +150,20 @@ body,
   align-self: center;
   color: var(--muted);
 }
+.checkbox-field {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  color: var(--text);
+  margin-top: 4px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.checkbox-field input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
 .modal-actions {
   margin-top: 4px;
 }

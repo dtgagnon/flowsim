@@ -123,6 +123,18 @@ Because parallel branches still couple slightly through the shared manifold
 pressure, the report flags any residual branch-to-branch spread and suggests a
 per-branch trim valve when exact balancing matters.
 
+## Closed (recirculating) loops
+
+The reservoir has two ports — a **supply** (right) and a **return** (left) — so
+the loop can feed back into it instead of dumping to an open outlet. Connect the
+end of the loop to the reservoir's return port and the fluid recirculates; the
+reservoir acts as both source and sink and sets the loop's reference pressure
+(its set pressure is the static head at its surface). The **Closed loop** button
+loads a recirculating example (reservoir → pump → sensors → metering valve →
+back to reservoir), and the design dialog has a **Closed loop** checkbox that
+routes every branch (and the bypass) back to the reservoir instead of to open
+drains.
+
 ## Save & load
 
 **Export** downloads the current schematic (fluid, components, tubing, valve

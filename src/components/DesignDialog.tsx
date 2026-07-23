@@ -15,6 +15,7 @@ export function DesignDialog({ onClose }: { onClose: () => void }) {
   const [pumpMinValue, setPumpMinValue] = useState(20);
   const [pumpMaxValue, setPumpMaxValue] = useState(50);
   const [pumpFlowUnit, setPumpFlowUnit] = useState<FlowUnit>("mL/min");
+  const [closedLoop, setClosedLoop] = useState(false);
   const [result, setResult] = useState<DesignResult | null>(null);
 
   const run = () => {
@@ -25,6 +26,7 @@ export function DesignDialog({ onClose }: { onClose: () => void }) {
       pumpMinValue,
       pumpMaxValue,
       pumpFlowUnit,
+      closedLoop,
     };
     setResult(synthesize(params));
   };
@@ -101,6 +103,18 @@ export function DesignDialog({ onClose }: { onClose: () => void }) {
               </select>
             </div>
           </div>
+
+          <label className="checkbox-field">
+            <input
+              type="checkbox"
+              checked={closedLoop}
+              onChange={(e) => setClosedLoop(e.target.checked)}
+            />
+            <span>
+              Closed loop — recirculate back into the reservoir instead of draining to open
+              outlets
+            </span>
+          </label>
         </div>
 
         <div className="modal-actions">

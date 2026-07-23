@@ -65,6 +65,7 @@ interface Store {
   setFluid: (id: string) => void;
   loadExample: () => void;
   loadDivider: () => void;
+  loadClosedLoop: () => void;
   loadSchematic: (s: { nodes: ComponentNode[]; edges: TubeEdge[]; fluidId?: string }) => void;
   exportSchematic: () => string;
   importSchematic: (json: string) => { ok: boolean; error?: string };
@@ -185,6 +186,12 @@ export const useStore = create<Store>((set, get) => {
       set({ nodes: ex.nodes, edges: ex.edges, selectedId: null, selectedKind: null });
       recompute();
     },
+    loadClosedLoop: () => {
+      const ex = buildClosedLoopExample();
+      idSeq = ex.nextSeq;
+      set({ nodes: ex.nodes, edges: ex.edges, selectedId: null, selectedKind: null });
+      recompute();
+    },
     loadSchematic: ({ nodes, edges, fluidId }) => {
       idSeq = seqBeyond(nodes, edges);
       set({
@@ -295,7 +302,7 @@ function buildExample() {
   });
 
   const edges: TubeEdge[] = [
-    tube("tube_1", "reservoir_1", "pump_1", 9.5, 20, "p", "in"),
+    tube("tube_1", "reservoir_1", "pump_1", 9.5, 20, "out", "in"),
     tube("tube_2", "pump_1", "sensor_1", 9.5, 25, "out", "l"),
     tube("tube_3", "sensor_1", "barbY_1", 9.5, 25, "r", "in"),
     tube("tube_4", "barbY_1", "sensor_2", 6.4, 40, "a", "l"),
@@ -353,7 +360,7 @@ function buildDividerExample() {
   });
 
   const edges: TubeEdge[] = [
-    tube("tube_1", "reservoir_1", "pump_1", 9.5, 20, "silicone", "p", "in"),
+    tube("tube_1", "reservoir_1", "pump_1", 9.5, 20, "silicone", "out", "in"),
     tube("tube_2", "pump_1", "barbTee_1", 9.5, 20, "silicone", "out", "in"),
     // Wide-bore bypass — low resistance, carries almost all of the 50 mL/min.
     tube("tube_3", "barbTee_1", "sensor_bypass", 6.4, 15, "silicone", "a", "l"),
@@ -361,6 +368,60 @@ function buildDividerExample() {
     // Fine-bore sample capillary — high resistance, throttles to ~100 µL/min.
     tube("tube_5", "barbTee_1", "sensor_sample", 1.6, 40, "ptfe", "b", "l"),
     tube("tube_6", "sensor_sample", "outlet_sample", 1.6, 10, "ptfe", "r", "p"),
+  ];
+
+  return { nodes, edges, nextSeq: 100 };
+}
+
+// Closed recirculating loop: fluid is pumped out of the reservoir, through a
+// metering needle valve and sensors, and fed back into the reservoir's return
+// port. No open outlet — the reservoir is both supply and return, and sets the
+// loop's reference pressure.
+function buildClosedLoopExample() {
+  const n = (id: string, kind: PaletteKind, x: number, y: number): ComponentNode => ({
+    id,
+    type: "component",
+    position: { x, y },
+    data: makeComponentData(kind),
+  });
+
+  const nodes: ComponentNode[] = [
+    n("reservoir_1", "reservoir", 60, 320),
+    n("pump_1", "pump", 260, 200),
+    n("sensor_1", "sensor", 460, 180),
+    n("needleValve_1", "needleValve", 660, 180),
+    n("sensor_2", "sensor", 860, 180),
+  ];
+  (nodes.find((x) => x.id === "pump_1")!.data as any).flowValue = 400;
+  (nodes.find((x) => x.id === "sensor_1")!.data as any).label = "Loop inlet";
+  (nodes.find((x) => x.id === "sensor_2")!.data as any).label = "After valve";
+  (nodes.find((x) => x.id === "needleValve_1")!.data as any).opening = 60;
+
+  const tube = (
+    id: string,
+    source: string,
+    target: string,
+    sizeIdMm: number,
+    lengthValue: number,
+    sourceHandle: string,
+    targetHandle: string,
+  ): TubeEdge => ({
+    id,
+    source,
+    target,
+    sourceHandle,
+    targetHandle,
+    type: "tube",
+    data: { sizeIdMm, materialId: "silicone", lengthValue, lengthUnit: "cm" },
+  });
+
+  const edges: TubeEdge[] = [
+    tube("tube_1", "reservoir_1", "pump_1", 9.5, 25, "out", "in"),
+    tube("tube_2", "pump_1", "sensor_1", 9.5, 25, "out", "l"),
+    tube("tube_3", "sensor_1", "needleValve_1", 9.5, 20, "r", "l"),
+    tube("tube_4", "needleValve_1", "sensor_2", 9.5, 20, "r", "l"),
+    // return feedback into the reservoir — closes the loop
+    tube("tube_5", "sensor_2", "reservoir_1", 9.5, 60, "r", "in"),
   ];
 
   return { nodes, edges, nextSeq: 100 };

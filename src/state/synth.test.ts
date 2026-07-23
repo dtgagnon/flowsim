@@ -69,6 +69,35 @@ test("single sensor below pump minimum uses a divider", () => {
   assert.ok(Math.abs(achievedUl - 100) / 100 < 0.05, `achieved ${achievedUl} µL/min`);
 });
 
+test("closed-loop design: branches recirculate to reservoir, no open outlets", () => {
+  const params: DesignParams = {
+    sensorCount: 3,
+    targetFlowValue: 100,
+    targetFlowUnit: "µL/min",
+    pumpMinValue: 20,
+    pumpMaxValue: 50,
+    pumpFlowUnit: "mL/min",
+    closedLoop: true,
+  };
+  const r = synthesizeLoop(params, "water20");
+  assert.ok(r.ok);
+  // Closed loop → no open outlets; everything returns to the reservoir.
+  assert.equal(r.nodes.filter((n) => n.data.kind === "outlet").length, 0);
+  const reservoirs = r.nodes.filter((n) => n.data.kind === "reservoir");
+  assert.equal(reservoirs.length, 1);
+  // The reservoir has both supply and multiple returns wired to it.
+  const resId = reservoirs[0].id;
+  const incident = r.edges.filter((e) => e.source === resId || e.target === resId);
+  assert.ok(incident.length >= 3, `reservoir edges ${incident.length}`);
+
+  // Each sensor still holds ~target.
+  const res = buildAndSolve(r.nodes, r.edges, "water20");
+  for (const s of r.nodes.filter((n) => n.data.kind === "sensor")) {
+    const q = flowFromM3s(Math.abs(res.nodes[s.id].flow ?? 0), "µL/min");
+    assert.ok(Math.abs(q - 100) / 100 < 0.08, `sensor ${s.id} = ${q} µL/min`);
+  }
+});
+
 test("infeasible: combined demand above pump maximum is rejected", () => {
   const params: DesignParams = {
     sensorCount: 1,
