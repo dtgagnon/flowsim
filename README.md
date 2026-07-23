@@ -102,16 +102,26 @@ Without Nix, any Node ≥ 20 works: `npm install && npm run dev`.
 Click **Design loop** and specify how many sensors you need, the target flow at
 those sensors, and the pump's flow range (min–max). FlowSim generates the loop
 with the **fewest nodes and edges** that satisfies the spec, then runs the
-solver to confirm the achieved flow:
+solver to confirm the achieved flow.
 
-- **Series** (minimal): when the pump can output the target directly, all
-  sensors go on one line — by mass conservation each sensor sees exactly the
-  pump flow. Pump is set to the target.
-- **Flow divider**: when the target is below the pump's minimum, one branch is
-  added — a wide bypass to shed the excess and a fine sample line (sensors in
-  series) whose diameter/length are sized (and solver-verified) to the target.
-- **Infeasible**: when the target exceeds the pump's maximum, no single-pump
-  loop can push that flow through a sensor — reported rather than faked.
+Each sensor represents an independent device sampling location, so sensors are
+**never placed in series** — a device downstream of one would perturb the
+others, and a series path forces a single shared flow through all of them.
+Every sensor gets its own parallel branch off a manifold:
+
+- **Parallel manifold**: when the pump can supply the combined demand
+  (N × target), it runs at exactly that and splits into N identical parallel
+  branches — each independently holds the target, no bypass needed.
+- **Flow divider manifold**: when the combined demand is below the pump's
+  minimum, one bypass branch is added to shed the excess (tapped off first so
+  the sample branches see equal manifold pressure), and the N sample branches
+  are sized (and solver-verified) to the target.
+- **Infeasible**: when the combined demand exceeds the pump's maximum, no
+  single-pump loop can supply it — reported rather than faked.
+
+Because parallel branches still couple slightly through the shared manifold
+pressure, the report flags any residual branch-to-branch spread and suggests a
+per-branch trim valve when exact balancing matters.
 
 ## Save & load
 
